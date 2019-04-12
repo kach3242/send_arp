@@ -1,4 +1,4 @@
-#pragma once
+#include <stdint.h>
 
 struct eth_header{
     uint8_t dmac[6];
@@ -17,3 +17,5 @@ struct arp_header{
     uint8_t dmac[6];
     uint32_t dip;
 };
+
+unsigned char* request(unsigned char *smac, char *sip, char *dip);

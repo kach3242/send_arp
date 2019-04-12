@@ -1,100 +1,44 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <pcap.h>
 #include <net/if.h>
+#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include "send_arp.h"
 
-unsigned char cMacAddr[8];
-
-unsigned char arp_packet[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                          0xff, 0xff, 0xff, 0xff, 0x08, 0x06, 0x00, 0x01,
-                          0x08, 0x00, 0x06, 0x04, 0x00, 0x01, 0xff, 0xff,
-                          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
-                          0xff, 0xff};
-
-
-static int GetSvrMacAddress( char *pIface )
-{
-    int nSD; // Socket descriptor
-    struct ifreq sIfReq; // Interface request
-    struct if_nameindex *pIfList; // Ptr to interface name index
-    struct if_nameindex *pListSave; // Ptr to interface name index
-
-    //
-    // Initialize this function
-    //
-    pIfList = (struct if_nameindex *)NULL;
-    pListSave = (struct if_nameindex *)NULL;
-#ifndef SIOCGIFADDR
-    // The kernel does not support the required ioctls
-    return( 0 );
-#endif
-
-    //
-    // Create a socket that we can use for all of our ioctls
-    //
-    nSD = socket( PF_INET, SOCK_STREAM, 0 );
-    if ( nSD < 0 )
-    {
-        // Socket creation failed, this is a fatal error
-        printf( "File %s: line %d: Socket failed\n", __FILE__, __LINE__ );
-        return( 0 );
-    }
-
-    //
-    // Obtain a list of dynamically allocated structures
-    //
-    pIfList = pListSave = if_nameindex();
-
-    //
-    // Walk thru the array returned and query for each interface's
-    // address
-    //
-    for ( pIfList; *(char *)pIfList != 0; pIfList++ )
-    {
-        //
-        // Determine if we are processing the interface that we
-        // are interested in
-        //
-        if ( strcmp(pIfList->if_name, pIface) )
-            // Nope, check the next one in the list
-            continue;
-        strncpy( sIfReq.ifr_name, pIfList->if_name, IF_NAMESIZE );
-
-        //
-        // Get the MAC address for this interface
-        //
-        if ( ioctl(nSD, SIOCGIFHWADDR, &sIfReq) != 0 )
-        {
-            // We failed to get the MAC address for the interface
-            printf( "File %s: line %d: Ioctl failed\n", __FILE__, __LINE__ );
-            return( 0 );
-        }
-        memmove( (void *)&cMacAddr[0], (void *)&sIfReq.ifr_ifru.ifru_hwaddr.sa_data[0], 6 );
-        break;
-    }
-
-    //
-    // Clean up things and return
-    //
-    if_freenameindex( pListSave );
-    return( 1 );
-}
+unsigned char* arp_packet;
 
 int main(int argc, char * argv[]){
     char * dev = argv[1];
     char errbuf[PCAP_ERRBUF_SIZE];
-    bzero( (void *)&cMacAddr[0], sizeof(cMacAddr) );
-    if ( !GetSvrMacAddress("eth0") )
-    {
-        // We failed to get the local host's MAC address
-        printf( "Fatal error: Failed to get local host's MAC address\n" );
+    int fd;
+    struct ifreq ifr;
+    char *iface = dev;
+    unsigned char *mac;
+
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name , iface , IFNAMSIZ-1);
+
+    ioctl(fd, SIOCGIFHWADDR, &ifr);
+
+    close(fd);
+
+    mac = (unsigned char *)ifr.ifr_hwaddr.sa_data;
+    printf("Mac : %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n" , mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    arp_packet = request(mac,argv[2], argv[3]);
+    for(int i=0; i<46; i++){
+    printf("%02x ",*(arp_packet+i));
     }
-    uint32_t s_ip = ntohl(inet_addr(argv[2]));
+    free(arp_packet);
+    //----------------mac addr------------------
+
+   /* uint32_t s_ip = ntohl(inet_addr(argv[2]));
     arp_packet[28] = (s_ip&0xff000000)>>24;
     arp_packet[29] = (s_ip&0x00ff0000)>>16;
     arp_packet[30] = (s_ip&0x0000ff00)>>8;
@@ -131,6 +75,5 @@ int main(int argc, char * argv[]){
     arp_packet[21] = 0x02;
     arp_packet[31] = 0x01;
     pcap_sendpacket(handle, arp_packet, 42);
-    pcap_close(handle);
-    return 0;
+    pcap_close(handle);*/
 }
