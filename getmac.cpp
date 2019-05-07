@@ -10,23 +10,23 @@
 #include <unistd.h>
 #include "send_arp.h"
 
-unsigned char* request(unsigned char *smac, char *sip, char *dip) {
+unsigned char* request(unsigned char *smac, uint32_t *sip, char *dip) {
     struct eth_header eth;
     unsigned char* packet =(unsigned char *)calloc(42, sizeof(uint8_t));
     for(int i=0; i<6; i++) {
         eth.dmac[i] = 0xff;
         eth.smac[i] = smac[i];
     }
-    eth.eth_type = ntohs(0x0800);
-    printf("%04x\n",eth.eth_type);
+    eth.eth_type = ntohs(0x0806);
     memcpy(packet, &eth, sizeof(struct eth_header));
+
     struct arp_header arp;
     arp.hw_type = ntohs(0x0001);
     arp.protocol = ntohs(0x0800);
     arp.hw_add_len = 0x06;
     arp.proto_add_len = 0x04;
     arp.opcode = ntohs(0x0001);
-    arp.sip = inet_addr(sip);
+    arp.sip = *sip;
     for(int i=0; i<6; i++) {
         arp.smac[i] = smac[i];
         arp.dmac[i] = 0xff;

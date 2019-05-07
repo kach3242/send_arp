@@ -6,6 +6,7 @@ struct eth_header{
     uint16_t eth_type;
 };
 
+#pragma pack(push, 1)
 struct arp_header{
     uint16_t hw_type;
     uint16_t protocol;
@@ -17,5 +18,5 @@ struct arp_header{
     uint8_t dmac[6];
     uint32_t dip;
 };
-
-unsigned char* request(unsigned char *smac, char *sip, char *dip);
+#pragma pack(pop)
+unsigned char* request(unsigned char *smac, uint32_t *sip, char *dip);
